@@ -1,33 +1,38 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
-import HomeScreen from './HomeScreen'; 
-import GameScreen from './GameScreen'; 
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from './HomeScreen';
+import GameScreen from './GameScreen';
 import EndScreen from './EndScreen';
 
+const Stack = createNativeStackNavigator();
+
 export default function App() {
-  const [screen, setScreen] = useState('home');
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [winner, setWinner] = useState(null);
 
-  const squareClick = (index) => {
-    if (squares[index] || winner) return; // this is to prevent the user from adding more x or o's when a person win but this line of code is not needed since it's going to the end game screen
+  const squareClick = (index, navigation) => {
+    if (squares[index] || winner) return;
     const updatedSquares = squares.slice();
     updatedSquares[index] = squares.filter(s => s).length % 2 === 0 ? 'X' : 'O';
     setSquares(updatedSquares);
-    
+
     const theWinner = checkWinner(updatedSquares);
     if (theWinner) {
-      endScreen(theWinner); // go to end screen if someone wins
-    } else if (!updatedSquares.includes(null)){
-        endScreen("Tie") // go to end screen if it's a tie
+      setWinner(theWinner);
+      navigation.navigate('End', { winner: theWinner });
+    } else if (!updatedSquares.includes(null)) {
+      setWinner('Tie');
+      navigation.navigate('End', { winner: 'Tie' });
     }
   };
 
   const checkWinner = (squares) => {
     const winningCombos = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6], //winning combinations on the tic tac toe grid
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
     ];
-
     for (let combo of winningCombos) {
       const [a, b, c] = combo;
       if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
@@ -37,45 +42,47 @@ export default function App() {
     return null;
   };
 
-  const startNewGame = () => { 
+  const resetGame = () => {
     setSquares(Array(9).fill(null));
     setWinner(null);
-    setScreen('game');
   };
 
-  const resetBoard = () => { //restart board. copied the startnewgame LMAO
-    setSquares(Array(9).fill(null));
-    setWinner(null);
-  }
-
-  const endScreen = (result) => { // start new game in end screen
-    setWinner(result);
-    setScreen('end');
-  };
-
-  const goToHome = () => { // go to home page in end screen
-    setScreen('home');
-  };
-
-  if (screen === 'home') {
-    return <HomeScreen onStartGame={startNewGame} />;
-  }
-
-  if (screen === 'game') {
-    return <GameScreen squares={squares} onSquareClick={squareClick} winner={winner} onReset={resetBoard}/>;// added onReset so that the board would reset
-  }
-
-  if (screen === 'end') { // same thing as home and game
-    return <EndScreen winner={winner} onRestart={startNewGame} onGoHome={goToHome} />;
-  }
-  return null;
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home">
+          {({ navigation }) => (
+            <HomeScreen onStartGame={() => {
+              resetGame();
+              navigation.navigate('Game');
+            }} />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Game">
+          {({ navigation }) => (
+            <GameScreen
+              squares={squares}
+              onSquareClick={(index) => squareClick(index, navigation)}
+              onReset={resetGame}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="End">
+          {({ route, navigation }) => (
+            <EndScreen
+              winner={route.params?.winner}
+              onRestart={() => {
+                resetGame();
+                navigation.navigate('Game');
+              }}
+              onGoHome={() => {
+                resetGame();
+                navigation.navigate('Home');
+              }}
+            />
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'lightgray',
-  },
-});
